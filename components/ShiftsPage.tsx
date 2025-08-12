@@ -1,50 +1,64 @@
 'use client';
-
 import React, { useState } from 'react';
 import { Table, Button, Modal, Form, Input, DatePicker, Space } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 import moment from 'moment';
+import { gql, useQuery, useMutation } from '@apollo/client';
 
-type Shift = {
-  id: string;
-  staffName: string;
-  clockIn?: string;
-  clockOut?: string;
-  note?: string;
-};
+const GET_SHIFTS = gql`
+  query GetShifts {
+    shifts {
+      id
+      note
+      clockIn
+      clockOut
+      user { id name }
+    }
+  }
+`;
 
-const initialData: Shift[] = [
-  { id: '1', staffName: 'Alice', clockIn: '2025-08-05T08:00:00Z', clockOut: '2025-08-05T16:00:00Z' },
-  { id: '2', staffName: 'Bob', clockIn: '2025-08-05T09:00:00Z' },
-];
+const CREATE_SHIFT = gql`
+  mutation CreateShift($data: CreateShiftInput!) {
+    createShift(data: $data) {
+      id
+      note
+      clockIn
+      user { id name }
+    }
+  }
+`;
 
 export default function ShiftsPage() {
-  const [data, setData] = useState<Shift[]>(initialData);
+  const { data, loading, error, refetch } = useQuery(GET_SHIFTS);
+  const [createShift] = useMutation(CREATE_SHIFT);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [form] = Form.useForm();
 
-  const columns: ColumnsType<Shift> = [
-    { title: 'Staff', dataIndex: 'staffName', key: 'staffName' },
-    { title: 'Clock In', dataIndex: 'clockIn', key: 'clockIn', render: (val) => (val ? moment(val).format('YYYY-MM-DD HH:mm') : '-') },
-    { title: 'Clock Out', dataIndex: 'clockOut', key: 'clockOut', render: (val) => (val ? moment(val).format('YYYY-MM-DD HH:mm') : '-') },
+  const columns = [
+    { title: 'Staff', dataIndex: ['user', 'name'], key: 'staffName' },
+    { title: 'Clock In', dataIndex: 'clockIn', key: 'clockIn', render: (val: any) => (val ? moment(val).format('YYYY-MM-DD HH:mm') : '-') },
+    { title: 'Clock Out', dataIndex: 'clockOut', key: 'clockOut', render: (val: any) => (val ? moment(val).format('YYYY-MM-DD HH:mm') : '-') },
     { title: 'Note', dataIndex: 'note', key: 'note' },
   ];
 
   const openModal = () => setIsModalVisible(true);
   const closeModal = () => setIsModalVisible(false);
 
-  const onFinish = (values: any) => {
-    const newShift: Shift = {
-      id: String(Math.random()).slice(2),
-      staffName: values.staffName,
-      clockIn: values.clockIn ? values.clockIn.toISOString() : undefined,
-      clockOut: values.clockOut ? values.clockOut.toISOString() : undefined,
-      note: values.note,
+  const onFinish = async (values: any) => {
+    const payload: any = {
+      userId: Number(values.userId),
+      note: values.note || null,
+      clockIn: values.clockIn ? values.clockIn.toISOString() : null,
+      clockOut: values.clockOut ? values.clockOut.toISOString() : null,
     };
-    setData((prev) => [newShift, ...prev]);
+
+    await createShift({ variables: { data: payload } });
     form.resetFields();
     closeModal();
+    refetch();
   };
+
+  if (loading) return <div>Loading shifts...</div>;
+  if (error) return <div>Error: {error.message}</div>;
 
   return (
     <div>
@@ -52,12 +66,12 @@ export default function ShiftsPage() {
         <Button type="primary" onClick={openModal}>Add Shift</Button>
       </Space>
 
-      <Table columns={columns} dataSource={data} rowKey={(r) => r.id} />
+      <Table columns={columns} dataSource={data?.shifts || []} rowKey={(r: any) => r.id} />
 
       <Modal title="Add Shift" open={isModalVisible} onCancel={closeModal} footer={null}>
         <Form form={form} layout="vertical" onFinish={onFinish}>
-          <Form.Item name="staffName" label="Staff name" rules={[{ required: true, message: 'Please enter staff name' }]}>
-            <Input />
+          <Form.Item name="userId" label="Staff (userId)" rules={[{ required: true, message: 'Please enter userId' }]}>
+            <Input placeholder="Enter userId (for now)" />
           </Form.Item>
 
           <Form.Item name="clockIn" label="Clock In">
