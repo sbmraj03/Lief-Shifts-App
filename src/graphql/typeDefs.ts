@@ -10,6 +10,7 @@ export const typeDefs = gql`
     email: String
     picture: String
     createdAt: DateTime!
+    shifts: [Shift!]
   }
 
   type Shift {
@@ -26,13 +27,14 @@ export const typeDefs = gql`
   }
 
   type Query {
+    me: User
     shifts: [Shift!]!
     shift(id: Int!): Shift
     users: [User!]!
   }
 
   input CreateShiftInput {
-    userId: Int!
+    userId: Int
     clockIn: DateTime
     clockOut: DateTime
     clockInLat: Float
@@ -42,7 +44,21 @@ export const typeDefs = gql`
     note: String
   }
 
+  input ClockInInput {
+    clockInLat: Float
+    clockInLng: Float
+    note: String
+  }
+
+  input ClockOutInput {
+    clockOutLat: Float
+    clockOutLng: Float
+    note: String
+  }
+
   type Mutation {
     createShift(data: CreateShiftInput!): Shift!
+    clockIn(data: ClockInInput): Shift!
+    clockOut(data: ClockOutInput): Shift!
   }
 `;
